@@ -4,7 +4,7 @@ from sklearn.metrics import accuracy_score
 import lightgbm as lgb
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.linear_model import Lasso,SGDRegressor,PassiveAggressiveRegressor,ElasticNet
+from sklearn.linear_model import Lasso,SGDRegressor,PassiveAggressiveRegressor,ElasticNet,LinearRegression
 
 path = '/Users/zhuxiaoxiansheng/Desktop/Animals_with_Attributes2/'
 
@@ -82,7 +82,7 @@ trainfeature_mean = np.mat(trainfeatures_tabel.groupby('label').mean().values).T
 trainfeature_std = np.mat(trainfeatures_tabel.groupby('label').std().values).T
 
 
-clf = ElasticNet(alpha=0.01)
+clf = Lasso(alpha=0.01)
 clf.fit(np.mat(train_attributetable.values).T,np.mat(test_attributetable.values).T)
 W = clf.coef_.T
 
@@ -101,7 +101,7 @@ virtual_test_attributelabel = virtual_test_attributelabel[rand_index]
 res_list = []
 for i in range(virtual_test_attributelabel.shape[1]):
     print("{} th classifier is training".format(i+1))
-    clf = lgb.LGBMRegressor()
+    clf = LinearRegression()
     clf.fit(virtual_testfeature,virtual_test_attributelabel[:,i])
     res = clf.predict(testfeatures)
     res_list.append(list(res))
