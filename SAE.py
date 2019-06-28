@@ -1,34 +1,28 @@
-import numpy as np
-import pandas as pd
-from sklearn.metrics import accuracy_score
-from scipy.linalg import solve_sylvester
+import scipy.io as sio
+data = sio.loadmat('/Volumes/TOSHIBA EXT/TIZSL/ZSL/AwA/awa_demo_data.mat')
 
-path = '/Users/zhuxiaoxiansheng/Desktop/Animals_with_Attributes2/'
+trainfeatures = data['X_tr']
+train_attributelabel = data['S_tr']
 
-classname = pd.read_csv(path+'classes.txt',header=None,sep = '\t')
-dic_class2name = {classname.index[i]:classname.loc[i][1] for i in range(classname.shape[0])}
-dic_name2class = {classname.loc[i][1]:classname.index[i] for i in range(classname.shape[0])}
-    
-def make_test_attributetable():
-    attribut_bmatrix = pd.read_csv(path+'predicate-matrix-continuous-01.txt',header=None,sep = ',')
-    test_classes = pd.read_csv(path+'testclasses.txt',header=None)
-    test_classes_flag = []
-    for item in test_classes.iloc[:,0].values.tolist():
-        test_classes_flag.append(dic_name2class[item])
-    return attribut_bmatrix.iloc[test_classes_flag,:]
+testfeatures = data['X_te']
+
+train_attributetable = data['S_te_pro']
+test_attributetable = data['S_te_gt']
+
+testlabel = data['param'][0][0][2]
         
-trainlabel = np.load(path+'AWA2_trainlabel.npy')
-train_attributelabel = np.load(path+'AWA2_train_continuous_01_attributelabel.npy')
 
-testlabel = np.load(path+'AWA2_testlabel.npy')
-test_attributelabel = np.load(path+'AWA2_test_continuous_01_attributelabel.npy')
+def normalize(fea):
+    nSmp,mFea = fea.shape
+    feaNorm = np.sqrt(np.sum(np.square(fea),1))
+    fea = fea/np.mat(feaNorm).T
+    return fea
 
-trainfeatures = np.load(path+'resnet101_trainfeatures.npy')
-testfeatures = np.load(path+'resnet101_testfeatures.npy')
+    
+trainfeatures = normalize(trainfeatures.T).T
+#testfeatures = normalize(testfeatures.T).T
 
-print(trainfeatures.shape,testfeatures.shape)
-
-lam = 7
+lam = 500000
 
 S = np.mat(train_attributelabel).T
 X = np.mat(trainfeatures).T
@@ -38,17 +32,27 @@ B = lam*X*X.T
 C = (1+lam)*S*X.T
 W = solve_sylvester(A,B,C)
 
-test_pre_attribute = (W*(np.mat(testfeatures).T)).T  
+W = normalize(W)
+
+test_pre_attribute =  testfeatures.dot(W.T)
+test_attributetable = normalize(test_attributetable.T).T
+
+
 print(test_pre_attribute.shape)
-test_attributetable = make_test_attributetable()
+
+from sklearn.metrics.pairwise import cosine_similarity
+
+dist = 1-cosine_similarity(test_pre_attribute,test_attributetable)
+
+lis = data['param'][0][0][1]
 
 label_lis = []
-for i in range(test_pre_attribute.shape[0]):
-    pre_res = test_pre_attribute[i,:]
-    loc = np.sum(np.square(test_attributetable.values - pre_res),axis=1).argmin()
-    label_lis.append(test_attributetable.index[loc])
+for i in range(dist.shape[0]):
+    loc = dist[i].argmin()
+    label_lis.append(lis[loc])
 
 print(accuracy_score(list(testlabel),label_lis))
+
 
 
 
